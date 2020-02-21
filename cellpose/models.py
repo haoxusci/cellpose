@@ -219,21 +219,21 @@ class SizeModel():
         szest = np.maximum(5., szest)
         return szest
 
+
 class CellposeModel():
     def __init__(self, device, pretrained_model=None, batch_size=8,
-                    diam_mean=27., net_avg=True):
-        super(CellposeModel, self).__init__()
-        if device==mx.gpu() and utils.use_gpu():
+                 diam_mean=27., net_avg=True):
+        if device == mx.gpu() and utils.use_gpu():
             self.device = mx.gpu()
         else:
             self.device = mx.cpu()
         self.pretrained_model = pretrained_model
-        self.batch_size=batch_size
+        self.batch_size = batch_size
         self.diam_mean = diam_mean
-        nbase = [32,64,128,256]
+        nbase = [32, 64, 128, 256]
         self.net = resnet_style.CPnet(nbase, nout=3)
         self.net.hybridize(static_alloc=True, static_shape=True)
-        self.net.initialize(ctx = self.device)#, grad_req='null')
+        self.net.initialize(ctx=self.device)  # grad_req='null')
         if pretrained_model is not None and isinstance(pretrained_model, str):
             self.net.load_parameters(pretrained_model)
             self.net.collect_params().setattr('grad_req', 'null')
@@ -256,16 +256,17 @@ class CellposeModel():
             self.pretrained_model = pretrained_model
 
     def eval(self, x, rescale=None, tile=True, net_avg=True, channels=None,
-                do_3D=False, progress=None, threshold=0.4):
+             do_3D=False, progress=None, threshold=0.4):
         """
             segment list of images x
         """
         nimg = len(x)
         if channels is not None:
-            if len(channels)==2:
+            if len(channels) == 2:
                 if not isinstance(channels[0], list):
                     channels = [channels for i in range(nimg)]
-            x = [transforms.reshape(x[i], channels=channels[i]) for i in range(nimg)]
+            x = [transforms.reshape(x[i], channels=channels[i])
+                 for i in range(nimg)]
         styles = []
         flows = []
         masks = []
