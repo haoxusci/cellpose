@@ -1,23 +1,14 @@
-import sys, os, warnings, datetime, tempfile, glob
+import sys, os, warnings, datetime, glob
 from natsort import natsorted
-from tqdm import tqdm
-
-from PyQt5 import QtGui, QtCore, Qt, QtWidgets
+from PyQt5 import QtGui, QtCore, QtWidgets
 import pyqtgraph as pg
-from pyqtgraph import GraphicsScene
 import matplotlib.pyplot as plt
-
 import numpy as np
-import cv2
-from scipy.ndimage import gaussian_filter1d
-from scipy.interpolate import interp1d
 from skimage import io
-from skimage import transform, draw, measure, segmentation
+from skimage import draw
 
 import mxnet as mx
-from mxnet import nd
-
-from . import utils, transforms, models, guiparts, plot
+from . import utils, models, guiparts, plot
 
 try:
     from google.cloud import storage
@@ -55,7 +46,7 @@ def make_cmap(cm=0):
 def run(zstack=None, images=None):
     # Always start by initializing Qt (only once per application)
     warnings.filterwarnings("ignore")
-    app = QtGui.QApplication(sys.argv)
+    app = QtWidgets.QApplication(sys.argv)
     icon_path = os.path.join(
         os.path.dirname(os.path.realpath(__file__)), 'logo/logo.png'
     )
@@ -79,7 +70,7 @@ def get_unique_points(set):
     set = list(np.unique(cps, axis=0))
     return set
 
-class MainW(QtGui.QMainWindow):
+class MainW(QtWidgets.QMainWindow):
     def __init__(self, zstack=None, images=None):
         super(MainW, self).__init__()
 
@@ -100,59 +91,59 @@ class MainW(QtGui.QMainWindow):
         main_menu = self.menuBar()
         file_menu = main_menu.addMenu("&File")
         # load processed data
-        loadImg = QtGui.QAction("&Load image (*.tif, *.png, *.jpg)", self)
+        loadImg = QtWidgets.QAction("&Load image (*.tif, *.png, *.jpg)", self)
         loadImg.setShortcut("Ctrl+L")
         loadImg.triggered.connect(lambda: self.load_images(images))
         file_menu.addAction(loadImg)
 
-        self.loadMasks = QtGui.QAction("Load &masks (*.tif, *.png, *.jpg)", self)
+        self.loadMasks = QtWidgets.QAction("Load &masks (*.tif, *.png, *.jpg)", self)
         self.loadMasks.setShortcut("Ctrl+M")
         self.loadMasks.triggered.connect(lambda: self.load_masks(None))
         file_menu.addAction(self.loadMasks)
         self.loadMasks.setEnabled(False)
 
-        loadManual = QtGui.QAction("Load &processed/labelled image (*_seg.npy)", self)
+        loadManual = QtWidgets.QAction("Load &processed/labelled image (*_seg.npy)", self)
         loadManual.setShortcut("Ctrl+P")
         loadManual.triggered.connect(lambda: self.load_manual(None))
         file_menu.addAction(loadManual)
 
-        loadStack = QtGui.QAction("Load &numpy z-stack (*.npy nimgs x nchan x pixels x pixels)", self)
+        loadStack = QtWidgets.QAction("Load &numpy z-stack (*.npy nimgs x nchan x pixels x pixels)", self)
         loadStack.setShortcut("Ctrl+N")
         loadStack.triggered.connect(lambda: self.load_zstack(None))
         file_menu.addAction(loadStack)
 
-        self.saveSet = QtGui.QAction("&Save masks and images (as *.npy)", self)
+        self.saveSet = QtWidgets.QAction("&Save masks and images (as *.npy)", self)
         self.saveSet.setShortcut("Ctrl+S")
         self.saveSet.triggered.connect(self.save_sets)
         file_menu.addAction(self.saveSet)
         self.saveSet.setEnabled(False)
 
-        self.saveServer = QtGui.QAction("Send manually labelled data to server", self)
+        self.saveServer = QtWidgets.QAction("Send manually labelled data to server", self)
         self.saveServer.triggered.connect(self.save_server)
         file_menu.addAction(self.saveServer)
         self.saveServer.setEnabled(False)
 
         edit_menu = main_menu.addMenu("&Edit")
-        self.undo = QtGui.QAction('Undo previous mask/trace', self)
+        self.undo = QtWidgets.QAction('Undo previous mask/trace', self)
         self.undo.setShortcut("Ctrl+Z")
         self.undo.triggered.connect(self.undo_action)
         self.undo.setEnabled(False)
         edit_menu.addAction(self.undo)
 
-        self.ClearButton = QtGui.QAction('Clear all masks', self)
+        self.ClearButton = QtWidgets.QAction('Clear all masks', self)
         self.ClearButton.setShortcut("Ctrl+0")
         self.ClearButton.triggered.connect(self.clear_all)
         self.ClearButton.setEnabled(False)
         edit_menu.addAction(self.ClearButton)
 
-        self.remcell = QtGui.QAction('Remove selected cell (Ctrl+CLICK)', self)
+        self.remcell = QtWidgets.QAction('Remove selected cell (Ctrl+CLICK)', self)
         self.remcell.setShortcut("Ctrl+Click")
         self.remcell.triggered.connect(self.remove_action)
         self.remcell.setEnabled(False)
         edit_menu.addAction(self.remcell)
 
         help_menu = main_menu.addMenu("&Help")
-        openHelp = QtGui.QAction("&Help window", self)
+        openHelp = QtWidgets.QAction("&Help window", self)
         openHelp.setShortcut("Ctrl+H")
         openHelp.triggered.connect(self.help_window)
         help_menu.addAction(openHelp)
@@ -178,8 +169,8 @@ class MainW(QtGui.QMainWindow):
         self.loaded = False
 
         # ---- MAIN WIDGET LAYOUT ---- #
-        self.cwidget = QtGui.QWidget(self)
-        self.l0 = QtGui.QGridLayout()
+        self.cwidget = QtWidgets.QWidget(self)
+        self.l0 = QtWidgets.QGridLayout()
         self.cwidget.setLayout(self.l0)
         self.setCentralWidget(self.cwidget)
         self.l0.setVerticalSpacing(4)
@@ -230,17 +221,17 @@ class MainW(QtGui.QMainWindow):
                         "selection-background-color: rgb(50,100,50);")
         self.checkstyle = "color: rgb(190,190,190);"
 
-        label = QtGui.QLabel('Views:')#[\u2191 \u2193]')
+        label = QtWidgets.QLabel('Views:')#[\u2191 \u2193]')
         label.setStyleSheet(self.headings)
         label.setFont(self.boldfont)
         self.l0.addWidget(label, 0,0,1,1)
 
-        label = QtGui.QLabel('[W/S]')
+        label = QtWidgets.QLabel('[W/S]')
         label.setStyleSheet('color: white')
         #label.setFont(self.smallfont)
         self.l0.addWidget(label, 1,0,1,1)
 
-        label = QtGui.QLabel('[pageup/down]')
+        label = QtWidgets.QLabel('[pageup/down]')
         label.setStyleSheet('color: white')
         label.setFont(self.smallfont)
         self.l0.addWidget(label, 1,1,1,1)
@@ -249,7 +240,7 @@ class MainW(QtGui.QMainWindow):
         self.view = 0 # 0=image, 1=flowsXY, 2=flowsZ, 3=cellprob
         self.color = 0 # 0=RGB, 1=gray, 2=R, 3=G, 4=B
         self.RGBChoose = guiparts.RGBRadioButtons(self, b,1)
-        self.RGBDropDown = QtGui.QComboBox()
+        self.RGBDropDown = QtWidgets.QComboBox()
         self.RGBDropDown.addItems(["RGB","gray","red","green","blue"])
         self.RGBDropDown.currentIndexChanged.connect(self.color_choose)
         self.RGBDropDown.setFixedWidth(60)
@@ -266,20 +257,20 @@ class MainW(QtGui.QMainWindow):
         line.setStyleSheet('color: white;')
         self.l0.addWidget(line, b,0,1,2)
         b+=1
-        label = QtGui.QLabel('Drawing:')
+        label = QtWidgets.QLabel('Drawing:')
         label.setStyleSheet(self.headings)
         label.setFont(self.boldfont)
         self.l0.addWidget(label, b,0,1,2)
 
         b+=1
         self.brush_size = 3
-        self.BrushChoose = QtGui.QComboBox()
+        self.BrushChoose = QtWidgets.QComboBox()
         self.BrushChoose.addItems(["1","3","5","7","9"])
         self.BrushChoose.currentIndexChanged.connect(self.brush_choose)
         self.BrushChoose.setFixedWidth(60)
         self.BrushChoose.setStyleSheet(self.dropdowns)
         self.l0.addWidget(self.BrushChoose, b, 1,1,1)
-        label = QtGui.QLabel('brush size: [, .]')
+        label = QtWidgets.QLabel('brush size: [, .]')
         label.setStyleSheet('color: white;')
         self.l0.addWidget(label, b,0,1,1)
 
@@ -289,14 +280,14 @@ class MainW(QtGui.QMainWindow):
 
         b+=1
         # turn on draw mode
-        self.SCheckBox = QtGui.QCheckBox('single stroke')
+        self.SCheckBox = QtWidgets.QCheckBox('single stroke')
         self.SCheckBox.setStyleSheet(self.checkstyle)
         self.SCheckBox.toggled.connect(self.autosave_on)
         self.l0.addWidget(self.SCheckBox, b,0,1,2)
 
         b+=1
         # turn on crosshairs
-        self.CHCheckBox = QtGui.QCheckBox('cross-hairs')
+        self.CHCheckBox = QtWidgets.QCheckBox('cross-hairs')
         self.CHCheckBox.setStyleSheet(self.checkstyle)
         self.CHCheckBox.toggled.connect(self.cross_hairs)
         self.l0.addWidget(self.CHCheckBox, b,0,1,1)
@@ -305,7 +296,7 @@ class MainW(QtGui.QMainWindow):
         # turn off masks
         self.layer_off = False
         self.masksOn = True
-        self.MCheckBox = QtGui.QCheckBox('MASKS ON [X]')
+        self.MCheckBox = QtWidgets.QCheckBox('MASKS ON [X]')
         self.MCheckBox.setStyleSheet(self.checkstyle)
         self.MCheckBox.setChecked(True)
         self.MCheckBox.toggled.connect(self.toggle_masks)
@@ -314,7 +305,7 @@ class MainW(QtGui.QMainWindow):
         b+=1
         # turn off outlines
         self.outlinesOn = True
-        self.OCheckBox = QtGui.QCheckBox('outlines on [Z]')
+        self.OCheckBox = QtWidgets.QCheckBox('outlines on [Z]')
         self.OCheckBox.setStyleSheet(self.checkstyle)
         self.OCheckBox.setChecked(True)
         self.OCheckBox.toggled.connect(self.toggle_masks)
@@ -322,7 +313,7 @@ class MainW(QtGui.QMainWindow):
 
         b+=1
         # send to server
-        self.ServerButton = QtGui.QPushButton(' send manual seg. to server')
+        self.ServerButton = QtWidgets.QPushButton(' send manual seg. to server')
         self.ServerButton.clicked.connect(self.save_server)
         self.l0.addWidget(self.ServerButton, b,0,1,2)
         self.ServerButton.setEnabled(False)
@@ -334,17 +325,17 @@ class MainW(QtGui.QMainWindow):
         line.setStyleSheet('color: white;')
         self.l0.addWidget(line, b,0,1,2)
         b+=1
-        label = QtGui.QLabel('Segmentation:')
+        label = QtWidgets.QLabel('Segmentation:')
         label.setStyleSheet(self.headings)
         label.setFont(self.boldfont)
         self.l0.addWidget(label, b,0,1,2)
 
         b+=1
         self.diameter = 30
-        label = QtGui.QLabel('cell diameter (pix):')
+        label = QtWidgets.QLabel('cell diameter (pix):')
         label.setStyleSheet('color: white;')
         self.l0.addWidget(label, b, 0,1,2)
-        self.Diameter = QtGui.QLineEdit()
+        self.Diameter = QtWidgets.QLineEdit()
         self.Diameter.setText(str(self.diameter))
         self.Diameter.returnPressed.connect(self.compute_scale)
         self.Diameter.setFixedWidth(50)
@@ -352,7 +343,7 @@ class MainW(QtGui.QMainWindow):
         self.l0.addWidget(self.Diameter, b, 0,1,2)
 
         # recompute model
-        self.SizeButton = QtGui.QPushButton('  calibrate')
+        self.SizeButton = QtWidgets.QPushButton('  calibrate')
         self.SizeButton.clicked.connect(self.calibrate_size)
         self.l0.addWidget(self.SizeButton, b,1,1,1)
         self.SizeButton.setEnabled(False)
@@ -362,7 +353,7 @@ class MainW(QtGui.QMainWindow):
         # scale toggle
         b+=1
         self.scale_on = True
-        self.ScaleOn = QtGui.QCheckBox('scale disk on')
+        self.ScaleOn = QtWidgets.QCheckBox('scale disk on')
         self.ScaleOn.setStyleSheet('color: red;')
         self.ScaleOn.setChecked(True)
         self.ScaleOn.toggled.connect(self.toggle_scale)
@@ -370,14 +361,14 @@ class MainW(QtGui.QMainWindow):
 
         # use GPU
         b+=1
-        self.useGPU = QtGui.QCheckBox('use GPU')
+        self.useGPU = QtWidgets.QCheckBox('use GPU')
         self.useGPU.setStyleSheet(self.checkstyle)
         self.check_gpu()
         self.l0.addWidget(self.useGPU, b,0,1,2)
 
         b+=1
         # choose models
-        self.ModelChoose = QtGui.QComboBox()
+        self.ModelChoose = QtWidgets.QComboBox()
         self.model_dir = os.path.abspath(os.path.join(self.cp_path, 'models/'))
         #models = glob(self.model_dir+'/*')
         #models = [os.path.split(m)[-1] for m in models]
@@ -386,20 +377,20 @@ class MainW(QtGui.QMainWindow):
         self.ModelChoose.setFixedWidth(70)
         self.ModelChoose.setStyleSheet(self.dropdowns)
         self.l0.addWidget(self.ModelChoose, b, 1,1,1)
-        label = QtGui.QLabel('model: ')
+        label = QtWidgets.QLabel('model: ')
         label.setStyleSheet('color: white;')
         self.l0.addWidget(label, b, 0,1,1)
 
         b+=1
         # choose channel
-        self.ChannelChoose = [QtGui.QComboBox(), QtGui.QComboBox()]
+        self.ChannelChoose = [QtWidgets.QComboBox(), QtWidgets.QComboBox()]
         self.ChannelChoose[0].addItems(['gray','red','green','blue'])
         self.ChannelChoose[1].addItems(['none','red','green','blue'])
         cstr = ['chan to seg', 'chan2 (opt)']
         for i in range(2):
             self.ChannelChoose[i].setFixedWidth(70)
             self.ChannelChoose[i].setStyleSheet(self.dropdowns)
-            label = QtGui.QLabel(cstr[i])
+            label = QtWidgets.QLabel(cstr[i])
             label.setStyleSheet('color: white;')
             self.l0.addWidget(label, b, 0,1,1)
             self.l0.addWidget(self.ChannelChoose[i], b, 1,1,1)
@@ -407,24 +398,24 @@ class MainW(QtGui.QMainWindow):
 
         b+=1
         # recompute model
-        self.ModelButton = QtGui.QPushButton('  run segmentation')
+        self.ModelButton = QtWidgets.QPushButton('  run segmentation')
         self.ModelButton.clicked.connect(self.compute_model)
         self.l0.addWidget(self.ModelButton, b,0,1,2)
         self.ModelButton.setEnabled(False)
         self.ModelButton.setStyleSheet(self.styleInactive)
         self.ModelButton.setFont(self.boldfont)
         b+=1
-        self.progress = QtGui.QProgressBar(self)
+        self.progress = QtWidgets.QProgressBar(self)
         self.progress.setStyleSheet('color: gray;')
         self.l0.addWidget(self.progress, b,0,1,2)
 
-        self.autobtn = QtGui.QCheckBox('auto-adjust')
+        self.autobtn = QtWidgets.QCheckBox('auto-adjust')
         self.autobtn.setStyleSheet(self.checkstyle)
         self.autobtn.setChecked(True)
         self.l0.addWidget(self.autobtn, b+2,0,1,1)
 
         b+=1
-        label = QtGui.QLabel('saturation')
+        label = QtWidgets.QLabel('saturation')
         label.setStyleSheet(self.headings)
         label.setFont(self.boldfont)
         self.l0.addWidget(label, b,1,1,1)
@@ -435,13 +426,13 @@ class MainW(QtGui.QMainWindow):
         self.slider.setMaximum(255)
         self.slider.setLow(0)
         self.slider.setHigh(255)
-        self.slider.setTickPosition(QtGui.QSlider.TicksRight)
+        self.slider.setTickPosition(QtWidgets.QSlider.TicksRight)
         self.l0.addWidget(self.slider, b,1,1,1)
         self.l0.setRowStretch(b, 1)
 
         b+=2
         # add scrollbar underneath
-        self.scroll = QtGui.QScrollBar(QtCore.Qt.Horizontal)
+        self.scroll = QtWidgets.QScrollBar(QtCore.Qt.Horizontal)
         self.scroll.setMaximum(10)
         self.scroll.valueChanged.connect(self.move_in_Z)
         self.l0.addWidget(self.scroll, b,3,1,20)
@@ -972,13 +963,13 @@ class MainW(QtGui.QMainWindow):
 
     def save_server(self):
         """Uploads a file to the bucket."""
-        q = QtGui.QMessageBox.question(
+        q = QtWidgets.QMessageBox.question(
                                         self,
                                         "Send to server",
                                         "Are you sure? Only send complete and fully manually segmented data.\n (do not send partially automated segmentations)",
-                                        QtGui.QMessageBox.Yes | QtGui.QMessageBox.No
+                                        QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No
                                       )
-        if q == QtGui.QMessageBox.Yes:
+        if q == QtWidgets.QMessageBox.Yes:
             bucket_name = 'cellpose_data'
             base = os.path.splitext(self.filename)[0]
             source_file_name = base + '_seg.npy'
@@ -1111,7 +1102,7 @@ class MainW(QtGui.QMainWindow):
 
     def load_manual(self, filename=None, image=None, image_file=None):
         if filename is None:
-            name = QtGui.QFileDialog.getOpenFileName(
+            name = QtWidgets.QFileDialog.getOpenFileName(
                 self, "Load labelled data", filter="*.npy"
                 )
             filename = name[0]
@@ -1219,7 +1210,7 @@ class MainW(QtGui.QMainWindow):
                                     np.percentile(self.stack[n].astype(np.float32),99)])
 
     def load_masks(self, filename=None):
-        name = QtGui.QFileDialog.getOpenFileName(
+        name = QtWidgets.QFileDialog.getOpenFileName(
             self, "Load masks (color channels = nucleus, cytoplasm, ...)"
             )
         masks = io.imread(name[0])
@@ -1374,7 +1365,7 @@ class MainW(QtGui.QMainWindow):
     def load_images(self, filename=None):
         #QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.WaitCursor)
         if filename is None:
-            name = QtGui.QFileDialog.getOpenFileName(
+            name = QtWidgets.QFileDialog.getOpenFileName(
                 self, "Load image"
                 )
             filename = name[0]
@@ -1441,7 +1432,7 @@ class MainW(QtGui.QMainWindow):
     def load_zstack(self, filename=None):
         #QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.WaitCursor)
         if filename is None:
-            name = QtGui.QFileDialog.getOpenFileName(
+            name = QtWidgets.QFileDialog.getOpenFileName(
                 self, "Load matrix of images", filter="*.npy"
                 )
             filename = name[0]
