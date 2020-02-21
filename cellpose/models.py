@@ -77,32 +77,40 @@ def download_model_weights(urls=urls):
 class Cellpose():
     """ main model which combines size and cellpose model """
     def __init__(self, device=mx.cpu(), model_type=None, pretrained_model=None,
-                    pretrained_size=None, diam_mean=27., net_avg=True):
+                 pretrained_size=None, diam_mean=27., net_avg=True):
         super(Cellpose, self).__init__()
-        self.batch_size=8
+        self.batch_size = 8
         self.diam_mean = diam_mean
         if model_type is not None and pretrained_model is None:
-            pretrained_model = [os.path.abspath(os.path.join(os.path.dirname(__file__),
-                                                'models/%s_%d'%(model_type,j))) for j in range(4)]
-            pretrained_size = os.path.abspath(os.path.join(os.path.dirname(__file__),
-                                                    'models/size_%s_0.npy'%model_type))
+            pretrained_model = [
+                os.path.abspath(os.path.join(os.path.dirname(__file__),
+                                             'models/%s_%d' % (model_type, j)
+                                             )) for j in range(4)]
+            pretrained_size = os.path.abspath(
+                os.path.join(os.path.dirname(__file__),
+                             'models/size_%s_0.npy' % model_type)
+                )
             if not os.path.isfile(pretrained_model[0]):
                 download_model_weights()
         elif pretrained_model is None:
             if net_avg:
-                pretrained_model = [os.path.abspath(os.path.join(os.path.dirname(__file__),
-                                                'models/cyto_%d'%j)) for j in range(4)]
+                pretrained_model = [
+                    os.path.abspath(os.path.join(os.path.dirname(__file__),
+                                                 'models/cyto_%d' % j
+                                                 )) for j in range(4)]
                 if not os.path.isfile(pretrained_model[0]):
                     download_model_weights()
             else:
-                pretrained_model = os.path.abspath(os.path.join(os.path.dirname(__file__),
-                                                'models/cyto_0'))
+                pretrained_model = os.path.abspath(
+                    os.path.join(os.path.dirname(__file__),
+                                 'models/cyto_0'))
                 if not os.path.isfile(pretrained_model):
                     download_model_weights()
             if pretrained_size is None:
-                pretrained_size = os.path.abspath(os.path.join(os.path.dirname(__file__),
-                                                    'models/size_cyto_0.npy'))
-        if device==mx.gpu() and utils.use_gpu():
+                pretrained_size = os.path.abspath(
+                    os.path.join(os.path.dirname(__file__),
+                                 'models/size_cyto_0.npy'))
+        if device == mx.gpu() and utils.use_gpu():
             self.device = mx.gpu()
         else:
             self.device = mx.cpu()
@@ -112,8 +120,12 @@ class Cellpose():
                                 pretrained_model=self.pretrained_model,
                                 diam_mean=self.diam_mean)
         if self.pretrained_size is not None:
-            self.sz = SizeModel(device=self.device, pretrained_size=self.pretrained_size,
-                                cp_model=self.cp, diam_mean=diam_mean)
+            self.sz = SizeModel(
+                device=self.device,
+                pretrained_size=self.pretrained_size,
+                cp_model=self.cp,
+                diam_mean=diam_mean
+            )
             self.diam_mean = self.sz.diam_mean
 
     def eval(self, x, channels=None, rescale=1.0, do_3D=False,
@@ -123,16 +135,21 @@ class Cellpose():
             rescale = rescale * np.ones(len(x), np.float32)
 
         if self.pretrained_size is not None and rescale is None and not do_3D:
-            diams, diams_style = self.sz.eval(x, channels=channels, batch_size=self.batch_size, tile=tile)
+            diams, diams_style = self.sz.eval(
+                x, channels=channels, batch_size=self.batch_size, tile=tile)
             rescale = self.diam_mean / diams.copy()
             print('estimated cell diameters for all images')
         else:
             if rescale is None:
                 rescale = np.ones(len(x), np.float32)
             diams = self.diam_mean / rescale.copy()
-        masks, flows, styles = self.cp.eval(x, rescale=rescale, channels=channels, tile=tile,
-                                            do_3D=do_3D, net_avg=net_avg, progress=progress,
-                                            threshold=0.4)
+        masks, flows, styles = self.cp.eval(
+            x, rescale=rescale, channels=channels,
+            tile=tile,
+            do_3D=do_3D, 
+            net_avg=net_avg,
+            progress=progress,
+            threshold=0.4)
         return masks, flows, styles, diams
 
 class SizeModel():
@@ -222,13 +239,16 @@ class CellposeModel():
             self.net.collect_params().setattr('grad_req', 'null')
         elif pretrained_model is None:
             if net_avg:
-                pretrained_model = [os.path.abspath(os.path.join(os.path.dirname(__file__),
-                                                'models/cyto_%d'%j)) for j in range(4)]
+                pretrained_model = [
+                    os.path.abspath(os.path.join(os.path.dirname(__file__),
+                                                 'models/cyto_%d' % j
+                                                 )) for j in range(4)]
                 if not os.path.isfile(pretrained_model[0]):
                     download_model_weights()
             else:
-                pretrained_model = os.path.abspath(os.path.join(os.path.dirname(__file__),
-                                                'models/cyto_0'))
+                pretrained_model = os.path.abspath(
+                    os.path.join(os.path.dirname(__file__),
+                                 'models/cyto_0'))
                 if not os.path.isfile(pretrained_model):
                     download_model_weights()
                 self.net.load_parameters(pretrained_model)

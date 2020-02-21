@@ -5,6 +5,7 @@ import mxnet.ndarray as nd
 from numba import njit
 from . import utils, metrics
 
+
 @njit('(float32[:], float32[:,:], int32[:], int32[:],int32, int32)')
 def neighbor_flow(p, alpha, y, x, Lx, niter):
     for t in range(niter):
