@@ -28,11 +28,11 @@ except:
     SERVER_UPLOAD = False
 
 
-class QHLine(QtGui.QFrame):
+class QHLine(QtWidgets.QFrame):
     def __init__(self):
         super(QHLine, self).__init__()
-        self.setFrameShape(QtGui.QFrame.HLine)
-        self.setFrameShadow(QtGui.QFrame.Sunken)
+        self.setFrameShape(QtWidgets.QFrame.HLine)
+        self.setFrameShadow(QtWidgets.QFrame.Sunken)
 
 def make_bwr():
     # make a bwr colormap
