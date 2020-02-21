@@ -134,3 +134,6 @@ dmypy.json
 !.vscode/cSpell.json
 !.vscode/extensions.json
 !.vscode/tasks.json
+
+# models
+models/

@@ -1,18 +1,11 @@
+from cellpose import datasets
 from glob import glob
 from tifffile import imread
-import mxnet as mx
-import mxnet.ndarray as nd
 import numpy as np
-from matplotlib import pyplot as plt
-from mxnet import gpu, cpu
-import time, os
 import cv2
-from glob import glob
 import sys
-
 sys.path.insert(0, 'D:\Github\cellpose')
-import cellpose
-from cellpose import utils, datasets
+
 
 def normalize99(img):
     X = img.copy()
@@ -22,6 +15,7 @@ def normalize99(img):
     else:
         X = (X - np.percentile(X, 1)) / (np.percentile(X, 99) - np.percentile(X, 1))
     return X
+
 
 def make():
     V = []

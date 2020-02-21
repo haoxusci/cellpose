@@ -1,9 +1,8 @@
 from scipy.ndimage.filters import maximum_filter1d
 import numpy as np
-import time
 import mxnet as mx
 import mxnet.ndarray as nd
-from numba import njit, float32, int32, vectorize
+from numba import njit
 from . import utils, metrics
 
 @njit('(float32[:], float32[:,:], int32[:], int32[:],int32, int32)')

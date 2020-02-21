@@ -1,6 +1,5 @@
-from mxnet import gluon, nd
+from mxnet import gluon
 from mxnet.gluon import nn
-import numpy as np
 
 nfeat = 128
 sz  = [3, 3, 3, 3, 3]

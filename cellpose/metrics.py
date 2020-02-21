@@ -1,5 +1,5 @@
 import numpy as np
-from . import utils, dynamics
+from . import dynamics
 from numba import jit
 
 @jit(nopython=True)

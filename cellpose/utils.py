@@ -1,13 +1,10 @@
 import cv2
 from scipy.ndimage.filters import maximum_filter1d
-from skimage import draw
 import numpy as np
 import mxnet as mx
 import mxnet.ndarray as nd
-from mxnet import gpu, cpu
 import time
-from numba import njit, float32, int32
-import os, pickle
+
 
 def use_gpu(gpu_number=0):
     try:

@@ -3,7 +3,6 @@ from matplotlib.colors import hsv_to_rgb, rgb_to_hsv
 from . import utils
 import cv2
 from scipy.ndimage import gaussian_filter
-import scipy
 import skimage
 from skimage import draw
 

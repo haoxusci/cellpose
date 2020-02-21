@@ -1,7 +1,4 @@
-import sys
 import numpy as np
-import os
-import cv2
 import pickle
 
 def diameters(masks):

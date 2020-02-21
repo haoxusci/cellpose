@@ -1,19 +1,14 @@
 import numpy as np
-import os, sys, time, shutil, tempfile
+import os, sys, shutil, tempfile
 from tqdm import trange, tqdm
 from urllib.request import urlopen
 from urllib.parse import urlparse
-import tempfile
-
-from scipy.ndimage import median_filter
 import cv2
 
-from mxnet import gluon, nd
-from mxnet.gluon import nn
+from mxnet import nd
 import mxnet as mx
 
 from . import transforms, dynamics, utils, resnet_style, plot
-import __main__
 
 urls = ['http://www.cellpose.org/models/cyto_0',
         'http://www.cellpose.org/models/cyto_1',
