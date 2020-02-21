@@ -422,7 +422,7 @@ class RangeSlider(QtWidgets.QSlider):
                 }")
 
 
-        #self.opt = QtWidgetsQtWidgets.QStyleOptionSlider()
+        #self.opt = QtWidgets.QStyleOptionSlider()
         #self.opt.orientation=QtCore.Qt.Vertical
         #self.initStyleOption(self.opt)
         # 0 for the low, 1 for the high, -1 for both
@@ -453,7 +453,7 @@ class RangeSlider(QtWidgets.QSlider):
 
     def paintEvent(self, event):
         # based on http://qt.gitorious.org/qt/qt/blobs/master/src/gui/widgets/qslider.cpp
-        painter = QtWidgetsQPainter(self)
+        painter = QtWidgets.QPainter(self)
         style = QtWidgets.QApplication.style()
 
         for i, value in enumerate([self._low, self._high]):
