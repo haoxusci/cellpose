@@ -453,7 +453,7 @@ class RangeSlider(QtWidgets.QSlider):
 
     def paintEvent(self, event):
         # based on http://qt.gitorious.org/qt/qt/blobs/master/src/gui/widgets/qslider.cpp
-        painter = QtWidgets.QPainter(self)
+        painter = QtGui.QPainter(self)
         style = QtWidgets.QApplication.style()
 
         for i, value in enumerate([self._low, self._high]):
